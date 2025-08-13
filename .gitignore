@@ -1,0 +1,6 @@
+.idea/
+.venv/
+__pycache__/
+*.exe
+*.exe.i64
+*.pdb
