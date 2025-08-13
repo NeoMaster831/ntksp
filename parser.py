@@ -3,12 +3,13 @@ parser.py - parse nt kernel symbols
 """
 
 from dotenv import load_dotenv
-import pefile, uuid, struct, requests, os
+import pefile, uuid, struct, requests, os, subprocess, json
 import logging
 
 load_dotenv()
 
 PDB_SAVE_PATH = os.getenv("PDB_SAVE_PATH")
+JSON_SAVE_PATH = os.getenv("JSON_SAVE_PATH")
 NT_KERNEL_DEFAULT_PATH = "C:\\Windows\\System32\\ntoskrnl.exe"
 
 
@@ -55,6 +56,48 @@ def retrieve_pdb(ntoskrnl_path: str = NT_KERNEL_DEFAULT_PATH, pdb_save_path: str
     return full_path
 
 
+def pdb_export_json(pdb_file_path, json_save_path: str = JSON_SAVE_PATH) -> str:
+
+    pdb_exporter_path = 'bin' + os.sep + 'pdb_exporter'
+    final_json_path = json_save_path + os.sep + 'out.json'
+
+    if os.path.exists(final_json_path):
+        return final_json_path
+
+    if not os.path.exists(json_save_path):
+        os.makedirs(json_save_path)
+
+    if not os.path.exists(pdb_exporter_path):
+        raise Exception(
+            'There is no PDB exporter in bin/ directory. Did you run setup properly? Or are you running in wrong directory?'
+        )
+
+    logging.info("Running PDB exporter...")
+
+    result = subprocess.run([
+        pdb_exporter_path,
+        pdb_file_path,
+        final_json_path
+    ]).returncode
+
+    if result != 0 or not os.path.exists(final_json_path):
+        raise Exception(
+            "There were some errors while running PDB exporter"
+        )
+
+    logging.info(f"Saved JSON to {final_json_path}")
+
+    return final_json_path
+
+def parse_json_file(json_file_path):
+    logging.info("Parsing JSON file...")
+    with open(json_file_path, 'r') as f:
+        contents = f.read()
+    return json.loads(contents)
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    pth = retrieve_pdb(ntoskrnl_path="./ntoskrnl.exe")
+    pdb_file = retrieve_pdb(ntoskrnl_path="./ntoskrnl.exe")
+    json_file = pdb_export_json(pdb_file)
+    data = parse_json_file(json_file)
